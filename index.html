@@ -493,6 +493,35 @@
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--ink); }
   ::-webkit-scrollbar-thumb { background: rgba(0,229,200,.3); }
+
+  @media (max-width: 768px) {
+    nav { padding: 1.25rem 1.5rem; }
+    .nav-logo { font-size: .85rem; }
+    .nav-status { font-size: .6rem; }
+    .hero { padding: 7rem 1.5rem 4rem; min-height: 100svh; }
+    .hero-eyebrow { font-size: .6rem; letter-spacing: .2em; margin-bottom: 1.5rem; }
+    .hero-title { font-size: clamp(2.4rem, 11vw, 4rem); margin-bottom: 1.5rem; }
+    .hero-desc { font-size: .8rem; max-width: 100%; margin-bottom: 2rem; }
+    .float-nums { display: none; }
+    section { padding: 4rem 1.5rem; }
+    .section-title { font-size: clamp(1.8rem, 7vw, 2.5rem); }
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .metric-num { font-size: 2.2rem; }
+    .features-grid { grid-template-columns: 1fr; }
+    .nichos-list { grid-template-columns: repeat(2, 1fr); gap: .75rem; }
+    .nicho-item { padding: 1rem; }
+    .nicho-name { font-size: .75rem; }
+    .nicho-item::after { font-size: 1.8rem; }
+    .terminal-body { font-size: .65rem; padding: 1.25rem 1rem; min-height: 220px; max-height: 260px; }
+    .t-time { min-width: 60px; font-size: .6rem; }
+    footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; gap: .5rem; }
+    .footer-text { font-size: .6rem; }
+  }
+
+  @media (max-width: 400px) {
+    .hero-title { font-size: clamp(2rem, 12vw, 3rem); }
+    .nichos-list { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
