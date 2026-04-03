@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coletor de Dados</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0a0a0f;
+    --deep: #0d0d1a;
+    --surface: #111120;
+    --card: #16162a;
+    --teal: #00e5c8;
+    --teal-dim: #00b5a0;
+    --amber: #f5a623;
+    --muted: #4a4a6a;
+    --text: #c8c8e0;
+    --white: #f0f0f8;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* GRID OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,200,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,200,.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* SCANLINE */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,.15) 2px,
+      rgba(0,0,0,.15) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* CURSOR GLOW */
+  .cursor-glow {
+    position: fixed;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,229,200,.06) 0%, transparent 70%);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    transition: opacity .3s;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 1.5rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,229,200,.08);
+    background: rgba(10,10,15,.8);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--teal);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+  }
+
+  .nav-status {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    font-size: .7rem;
+    color: var(--muted);
+    letter-spacing: .1em;
+  }
+
+  .pulse-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .4; transform: scale(.7); }
+  }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 8rem 3rem 4rem;
+    z-index: 10;
+    overflow: hidden;
+  }
+
+  .hero-eyebrow {
+    font-size: .7rem;
+    letter-spacing: .3em;
+    color: var(--teal);
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp .8s .2s forwards;
+  }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(3rem, 8vw, 7rem);
+    font-weight: 800;
+    line-height: .95;
+    color: var(--white);
+    max-width: 800px;
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp .8s .4s forwards;
+  }
+
+  .hero-title .accent {
+    color: transparent;
+    -webkit-text-stroke: 1px var(--teal);
+  }
+
+  .hero-title .amber {
+    color: var(--amber);
+  }
+
+  .hero-desc {
+    font-size: .85rem;
+    line-height: 1.9;
+    color: var(--muted);
+    max-width: 480px;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp .8s .6s forwards;
+  }
+
+  .hero-cta { display: none; }
+
+  /* FLOATING NUMBERS */
+  .float-nums {
+    position: absolute;
+    right: 3rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: .65rem;
+    color: rgba(0,229,200,.15);
+    letter-spacing: .1em;
+    line-height: 2.2;
+    font-family: 'Space Mono', monospace;
+    text-align: right;
+    user-select: none;
+    animation: fadeUp 1s 1s forwards;
+    opacity: 0;
+  }
+
+  /* MARQUEE */
+  .marquee-wrap {
+    position: relative;
+    z-index: 10;
+    border-top: 1px solid rgba(0,229,200,.1);
+    border-bottom: 1px solid rgba(0,229,200,.1);
+    overflow: hidden;
+    padding: 1rem 0;
+    background: rgba(0,229,200,.02);
+  }
+
+  .marquee-track {
+    display: flex;
+    gap: 4rem;
+    white-space: nowrap;
+    animation: marquee 25s linear infinite;
+    font-size: .7rem;
+    letter-spacing: .2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .marquee-track span { color: var(--teal); }
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* SECTIONS */
+  section {
+    position: relative;
+    z-index: 10;
+    padding: 6rem 3rem;
+  }
+
+  .section-label {
+    font-size: .65rem;
+    letter-spacing: .3em;
+    color: var(--teal);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .section-label::before {
+    content: '';
+    display: block;
+    width: 30px;
+    height: 1px;
+    background: var(--teal);
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 800;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+  }
+
+  /* METRICS */
+  .metrics {
+    background: var(--deep);
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1px;
+    background: rgba(0,229,200,.08);
+    border: 1px solid rgba(0,229,200,.08);
+    margin-top: 3rem;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    padding: 2.5rem 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: background .3s;
+  }
+
+  .metric-card:hover { background: var(--card); }
+
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--teal);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .4s;
+  }
+
+  .metric-card:hover::before { transform: scaleX(1); }
+
+  .metric-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--teal);
+    line-height: 1;
+    margin-bottom: .5rem;
+  }
+
+  .metric-label {
+    font-size: .7rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* FEATURES */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1px;
+    background: rgba(0,229,200,.06);
+    border: 1px solid rgba(0,229,200,.06);
+    margin-top: 3rem;
+  }
+
+  .feature {
+    background: var(--surface);
+    padding: 2.5rem 2rem;
+    transition: background .3s;
+    position: relative;
+  }
+
+  .feature:hover { background: var(--card); }
+
+  .feature-icon {
+    width: 40px; height: 40px;
+    border: 1px solid rgba(0,229,200,.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    color: var(--teal);
+  }
+
+  .feature-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: .75rem;
+    letter-spacing: .05em;
+  }
+
+  .feature-desc {
+    font-size: .75rem;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+
+  .feature-tag {
+    display: inline-block;
+    margin-top: 1.25rem;
+    font-size: .6rem;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    padding: .3rem .75rem;
+    border: 1px solid rgba(0,229,200,.2);
+    color: var(--teal);
+  }
+
+  /* NICHOS */
+  .nichos { background: var(--deep); }
+
+  .nichos-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 3rem;
+  }
+
+  .nicho-item {
+    border: 1px solid rgba(0,229,200,.08);
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    transition: all .2s;
+    cursor: crosshair;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nicho-item:hover {
+    border-color: rgba(0,229,200,.3);
+    background: var(--card);
+    transform: translateY(-2px);
+  }
+
+  .nicho-item::after {
+    content: attr(data-num);
+    position: absolute;
+    right: 1rem; bottom: .5rem;
+    font-size: 2.5rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    color: rgba(0,229,200,.04);
+    line-height: 1;
+  }
+
+  .nicho-name {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: .4rem;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .nicho-count {
+    font-size: .65rem;
+    color: var(--muted);
+    letter-spacing: .1em;
+  }
+
+  /* STATUS */
+  .status-section { background: var(--ink); }
+
+  .status-terminal {
+    background: var(--deep);
+    border: 1px solid rgba(0,229,200,.12);
+    margin-top: 3rem;
+    overflow: hidden;
+  }
+
+  .terminal-bar {
+    background: var(--surface);
+    padding: .75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    border-bottom: 1px solid rgba(0,229,200,.08);
+  }
+
+  .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .terminal-body {
+    padding: 2rem 1.5rem;
+    font-size: .75rem;
+    line-height: 2;
+    color: var(--muted);
+    min-height: 280px;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+
+  .t-line { display: flex; gap: 1rem; align-items: baseline; }
+  .t-time { color: rgba(0,229,200,.4); min-width: 80px; font-size: .65rem; }
+  .t-ok { color: var(--teal); }
+  .t-warn { color: var(--amber); }
+  .t-path { color: var(--white); }
+
+  /* FOOTER */
+  footer {
+    position: relative;
+    z-index: 10;
+    padding: 3rem;
+    border-top: 1px solid rgba(0,229,200,.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .footer-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: .9rem;
+    color: var(--teal);
+    letter-spacing: .2em;
+  }
+
+  .footer-text {
+    font-size: .65rem;
+    color: var(--muted);
+    letter-spacing: .1em;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity .7s, transform .7s;
+  }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--ink); }
+  ::-webkit-scrollbar-thumb { background: rgba(0,229,200,.3); }
+</style>
+</head>
+<body>
+
+<div class="cursor-glow" id="glow"></div>
+
+<nav>
+  <div class="nav-logo">Coletor.Dados</div>
+  <div class="nav-status">
+    <div class="pulse-dot"></div>
+    sistema ativo
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-eyebrow">// protocolo de observação — v.1.0</p>
+  <h1 class="hero-title">
+    Nada passa<br>
+    <span class="accent">despercebido.</span><br>
+    <span class="amber">Nada.</span>
+  </h1>
+  <p class="hero-desc">
+    Um sistema de inteligência silenciosa que observa, registra e interpreta padrões antes que se tornem visíveis a olho nu.
+  </p>
+
+
+  <div class="float-nums">
+    01 — observação passiva<br>
+    02 — coleta estruturada<br>
+    03 — análise por nicho<br>
+    04 — entrega diária<br>
+    05 — ação estratégica<br>
+    ——————————————<br>
+    30 perfis monitorados<br>
+    15 nichos catalogados<br>
+    ∞ possibilidades
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap">
+  <div class="marquee-track">
+    <span>observar</span> — coleta de dados — <span>analisar</span> — padrão identificado — <span>reportar</span> — inteligência estratégica — <span>monitorar</span> — insights do dia — <span>observar</span> — coleta de dados — <span>analisar</span> — padrão identificado — <span>reportar</span> — inteligência estratégica — <span>monitorar</span> — insights do dia —
+  </div>
+</div>
+
+<!-- METRICS -->
+<section class="metrics reveal" id="metrics">
+  <div class="section-label">cobertura ativa</div>
+  <h2 class="section-title">Os números<br>não mentem.</h2>
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-num">30</div>
+      <div class="metric-label">perfis monitorados</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num">15</div>
+      <div class="metric-label">nichos catalogados</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num">24h</div>
+      <div class="metric-label">ciclo de coleta</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num">07h</div>
+      <div class="metric-label">entrega do relatório</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="reveal" id="features">
+  <div class="section-label">protocolo</div>
+  <h2 class="section-title">Como o sistema<br>opera.</h2>
+  <div class="features-grid">
+    <div class="feature">
+      <div class="feature-icon">◉</div>
+      <div class="feature-title">Observação Contínua</div>
+      <div class="feature-desc">Monitoramento passivo e constante de todos os perfis registrados. Nenhuma publicação passa sem registro.</div>
+      <span class="feature-tag">passivo</span>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">◈</div>
+      <div class="feature-title">Análise por Nicho</div>
+      <div class="feature-desc">Cada cliente é interpretado dentro do seu contexto de mercado. A inteligência é contextual, não genérica.</div>
+      <span class="feature-tag">estruturado</span>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">◆</div>
+      <div class="feature-title">Cruzamento de Dados</div>
+      <div class="feature-desc">Posts, datas comemorativas e calendário estratégico são cruzados para gerar insights com timing preciso.</div>
+      <span class="feature-tag">inteligente</span>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">◎</div>
+      <div class="feature-title">Relatório Diário</div>
+      <div class="feature-desc">Todo dia às 7h um relatório completo chega no destino certo. Com ideias prontas e legendas para usar.</div>
+      <span class="feature-tag">automatizado</span>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">▲</div>
+      <div class="feature-title">Alerta em Tempo Real</div>
+      <div class="feature-desc">Quando algo relevante acontece fora do horário, o sistema notifica imediatamente. Sem atrasos.</div>
+      <span class="feature-tag">tempo real</span>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⬡</div>
+      <div class="feature-title">Identidade Oculta</div>
+      <div class="feature-desc">A conta operacional não revela intenção. Observa sem ser observada. Coleta sem ser notada.</div>
+      <span class="feature-tag">furtivo</span>
+    </div>
+  </div>
+</section>
+
+<!-- NICHOS -->
+<section class="nichos reveal" id="nichos">
+  <div class="section-label">cobertura por segmento</div>
+  <h2 class="section-title">Nichos sob<br>vigilância.</h2>
+  <div class="nichos-list">
+    <div class="nicho-item" data-num="01">
+      <div class="nicho-name">SETOR-01</div>
+      <div class="nicho-count">2 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="02">
+      <div class="nicho-name">SETOR-02</div>
+      <div class="nicho-count">2 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="03">
+      <div class="nicho-name">SETOR-03</div>
+      <div class="nicho-count">1 unidade ativa</div>
+    </div>
+    <div class="nicho-item" data-num="04">
+      <div class="nicho-name">SETOR-04</div>
+      <div class="nicho-count">5 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="05">
+      <div class="nicho-name">SETOR-05</div>
+      <div class="nicho-count">1 unidade ativa</div>
+    </div>
+    <div class="nicho-item" data-num="06">
+      <div class="nicho-name">SETOR-06</div>
+      <div class="nicho-count">1 unidade ativa</div>
+    </div>
+    <div class="nicho-item" data-num="07">
+      <div class="nicho-name">SETOR-07</div>
+      <div class="nicho-count">6 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="08">
+      <div class="nicho-name">SETOR-08</div>
+      <div class="nicho-count">2 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="09">
+      <div class="nicho-name">SETOR-09</div>
+      <div class="nicho-count">2 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="10">
+      <div class="nicho-name">SETOR-10</div>
+      <div class="nicho-count">3 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="11">
+      <div class="nicho-name">SETOR-11</div>
+      <div class="nicho-count">2 unidades ativas</div>
+    </div>
+    <div class="nicho-item" data-num="12">
+      <div class="nicho-name">SETOR-12</div>
+      <div class="nicho-count">1 unidade ativa</div>
+    </div>
+    <div class="nicho-item" data-num="13">
+      <div class="nicho-name">SETOR-13</div>
+      <div class="nicho-count">1 unidade ativa</div>
+    </div>
+    <div class="nicho-item" data-num="14">
+      <div class="nicho-name">SETOR-14</div>
+      <div class="nicho-count">1 unidade ativa</div>
+    </div>
+    <div class="nicho-item" data-num="15">
+      <div class="nicho-name">SETOR-15</div>
+      <div class="nicho-count">1 unidade ativa</div>
+    </div>
+  </div>
+</section>
+
+<!-- STATUS TERMINAL -->
+<section class="status-section reveal" id="status">
+  <div class="section-label">log do sistema</div>
+  <h2 class="section-title">Status<br>operacional.</h2>
+  <div class="status-terminal">
+    <div class="terminal-bar">
+      <div class="t-dot" style="background:#ff5f57"></div>
+      <div class="t-dot" style="background:#febc2e"></div>
+      <div class="t-dot" style="background:#28c840"></div>
+      <span style="font-size:.7rem; color: var(--muted); margin-left:.5rem;">coletor.dados — terminal</span>
+    </div>
+    <div class="terminal-body" id="terminal-body"></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Coletor.Dados</div>
+  <div class="footer-text">// sistema de inteligência estratégica — uso interno</div>
+  <div class="footer-text" id="clock"></div>
+</footer>
+
+<script>
+  // cursor glow
+  const glow = document.getElementById('glow');
+  document.addEventListener('mousemove', e => {
+    glow.style.left = e.clientX + 'px';
+    glow.style.top = e.clientY + 'px';
+  });
+
+  // scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  reveals.forEach(r => obs.observe(r));
+
+  // clock
+  function tick() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('pt-BR') + ' — ' + now.toLocaleDateString('pt-BR');
+  }
+  tick(); setInterval(tick, 1000);
+
+  // LIVE TERMINAL
+  const terminal = document.getElementById('terminal-body');
+  const MAX_LINES = 18;
+
+  const logPool = [
+    { type: 'ok',   msgs: [
+      'ping SETOR-{s} → resposta 200ms',
+      'novo post detectado → SETOR-{s} — processando...',
+      'análise de conteúdo concluída → SETOR-{s}',
+      'frequência de postagem verificada → SETOR-{s}',
+      'engajamento registrado → SETOR-{s}',
+      'metadados capturados → SETOR-{s}',
+      'padrão identificado → SETOR-{s}',
+      'sincronização concluída → SETOR-{s}',
+      'varredura de hashtags → SETOR-{s} ✓',
+      'relatório parcial gerado → SETOR-{s}',
+    ]},
+    { type: 'warn', msgs: [
+      'SETOR-{s} sem atividade há {d} dias — flag ativada',
+      'latência elevada → SETOR-{s} — monitorando',
+      'padrão irregular detectado → SETOR-{s}',
+      'baixo engajamento → SETOR-{s} — alerta registrado',
+    ]},
+    { type: 'info', msgs: [
+      'data comemorativa detectada → cruzamento em andamento',
+      'calendário sincronizado → {e} evento(s) encontrado(s)',
+      'coleta diária em progresso → {p}% concluído',
+      'legendas geradas → {n} sugestões prontas',
+      'relatório compilado → enviando para destino...',
+      'sistema em standby ativo — aguardando eventos',
+      'uptime: {u}h contínuas de monitoramento',
+    ]},
+  ];
+
+  function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+  function buildMsg(template) {
+    return template
+      .replace('{s}', String(randInt(1,15)).padStart(2,'0'))
+      .replace('{d}', randInt(2,6))
+      .replace('{e}', randInt(1,4))
+      .replace('{p}', randInt(20,99))
+      .replace('{n}', randInt(18,30))
+      .replace('{u}', randInt(1,72));
+  }
+
+  function nowTime() {
+    return new Date().toLocaleTimeString('pt-BR');
+  }
+
+  function addLine() {
+    const pool = rnd(logPool);
+    const msg = buildMsg(rnd(pool.msgs));
+    const typeClass = pool.type === 'ok' ? 't-ok' : pool.type === 'warn' ? 't-warn' : 't-ok';
+    const typeLabel = pool.type === 'ok' ? '[OK]' : pool.type === 'warn' ? '[WARN]' : '[INFO]';
+
+    const line = document.createElement('div');
+    line.className = 't-line';
+    line.style.opacity = '0';
+    line.style.transition = 'opacity .4s';
+    line.innerHTML = `<span class="t-time">${nowTime()}</span><span class="${typeClass}">${typeLabel}</span><span class="t-path">${msg}</span>`;
+    terminal.appendChild(line);
+    requestAnimationFrame(() => line.style.opacity = '1');
+
+    // keep max lines
+    const lines = terminal.querySelectorAll('.t-line');
+    if(lines.length > MAX_LINES) {
+      lines[0].style.opacity = '0';
+      setTimeout(() => lines[0].remove(), 400);
+    }
+
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  // seed with initial lines
+  const seedLogs = [
+    { t: 't-ok',   l: '[OK]',   m: 'sistema inicializado — protocolo de coleta ativo' },
+    { t: 't-ok',   l: '[OK]',   m: 'autenticação confirmada → @coletordedados' },
+    { t: 't-ok',   l: '[OK]',   m: 'carregando mapa de setores → 15 setores / 30 unidades' },
+    { t: 't-ok',   l: '[OK]',   m: 'google calendar sincronizado ✓' },
+    { t: 't-warn', l: '[WARN]', m: '3 unidades sem atividade há +3 dias — flags ativas' },
+    { t: 't-ok',   l: '[OK]',   m: 'relatório diário enviado → destino confirmado ✓' },
+  ];
+
+  seedLogs.forEach((s, i) => {
+    setTimeout(() => {
+      const line = document.createElement('div');
+      line.className = 't-line';
+      line.style.opacity = '0';
+      line.style.transition = 'opacity .4s';
+      line.innerHTML = `<span class="t-time">${nowTime()}</span><span class="${s.t}">${s.l}</span><span class="t-path">${s.m}</span>`;
+      terminal.appendChild(line);
+      requestAnimationFrame(() => line.style.opacity = '1');
+    }, i * 300);
+  });
+
+  // live updates every 2.5s
+  setTimeout(() => {
+    setInterval(addLine, 2500);
+  }, seedLogs.length * 300 + 800);
+</script>
+</body>
+</html>
